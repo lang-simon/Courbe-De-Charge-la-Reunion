@@ -7,7 +7,7 @@ Dans le cadre de la PPE Planification Pluriannuelle de l'Énergie de l'ile de la
 Exercice réalisé à L'ISAE-SUPAERO en mineure ETE : Energie, Transport et Environnement
 Scénario : diminution des investissements de l'État
 """
-
+import pandas as pd
 ##########################RESTE A FAIRE###########################
 #Gestion du Photovoltaique avec stockage => pas fait car seulement 10MW
 #################################################################
@@ -25,14 +25,23 @@ Scénario : diminution des investissements de l'État
 #Pour faire tout ceci, on crée des nouvelles colonnes pour chaque centrale avec sa production horaire, une colonne avec le nombre de groupe diesel, et une colonne prix (prix marginal maximum)
 
 ################################################################# 
-
-
+from math import ceil
+from datetime import timedelta
+import datetime
+import matplotlib as mp
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+dateparse = lambda x: pd.datetime.strptime(x, '%Y-%m-%dT%H:%M:%S+04:00')
 ###################################################
 
-###################CHOIX DU SCENARIO################################
-tend=0# 1= Que impact du tendanciel 0= mesures du tendanciel       #
-hiver=1
-annee=0                                                           #
+#####################CHOIX DU SCENARIO################################
+tend=1# 1= Que impact du tendanciel 0= mesures du tendanciel       #
+hiver=1# si annee =0 => choix de hiver(0) ou ete (1). Les dates peuvent être choisies plus bas
+annee=1  #simulation sur l'année entière 
+load=0 # si 1 : on load un fichier deja simulé. si load=0 on fait une nouvelle simulation et on l'enregistre. Uniquement possible pour une année entiere                                                   #
+hyp="" #si load=0 et que l'on ne souhaite pas effacer le précedent fichier avec le meme scénario ( nouvelles hypothèses par ex) on peut lui donner un nom
 ####################################################################
 
 
@@ -58,9 +67,10 @@ def get(data,colname, row):
 #############################################################
 
 #####################################LECTURE DU FICHIER ###########################################
-orig=pd.read_csv('EDF_conso_2018.csv',';',parse_dates=['Date - Heure'], date_parser=dateparse)
-orig=orig.iloc[:,[2,3,4,5,6,7,8,9,10]]
-orig=orig.sort_values("Date - Heure",ascending=True)
+if not(load):
+    orig=pd.read_csv('EDF_conso_2018.csv',';',parse_dates=['Date - Heure'], date_parser=dateparse)
+    orig=orig.iloc[:,[2,3,4,5,6,7,8,9,10]]
+    orig=orig.sort_values("Date - Heure",ascending=True)
 ###################################################################################################
 
 #######################MISE EN PLACE#####################################################
@@ -81,98 +91,105 @@ else :
 if annee:
     date_beg="2018-01-02"                          #
     date_fin="2018-12-31"
-    
-    
-date_beg=datetime.datetime.strptime(date_beg, '%Y-%m-%d')                                    #
-date_fin=datetime.datetime.strptime(date_fin, '%Y-%m-%d')                                    #
-orig=orig.loc[(orig['Date - Heure'] >=date_beg) & (orig['Date - Heure'] <=date_fin)]         #
-data=orig.set_index("Date - Heure")                                                          #
-data["cout marginal"]=0 #sans compter subventions enR                                                 #
-data["nbrcentralediesel"]=0                                                                  #
-data["Hydro"]=0
-data["fatal"]=data.iloc[:,4]+data.iloc[:,5]+data.iloc[:,6]+data.iloc[:,7] #TOTAL FATAL sans hydro #
-data["Photovoltaïque (MW)"]+=data["Photovoltaïque avec stockage (MW)"]
+    if tend :
+        titre="Tendanciel_2028"
+    else:
+        titre="Optimise_2028"
+
+if not(load):    
+    date_beg=datetime.datetime.strptime(date_beg, '%Y-%m-%d')                                    #
+    date_fin=datetime.datetime.strptime(date_fin, '%Y-%m-%d')                                    #
+    orig=orig.loc[(orig['Date - Heure'] >=date_beg) & (orig['Date - Heure'] <=date_fin)]         #
+    data=orig.set_index("Date - Heure")                                                          #
+    data["cout marginal"]=0 #sans compter subventions enR                                                 #
+    data["nbrcentralediesel"]=0                                                                  #
+    data["Hydro"]=0
+    data["fatal"]=data.iloc[:,4]+data.iloc[:,5]+data.iloc[:,6]+data.iloc[:,7] #TOTAL FATAL sans hydro #
+    data["Photovoltaïque (MW)"]+=data["Photovoltaïque avec stockage (MW)"]
 ##############################################################################################
 
 ###################PARC DE PRODUCTION#############################################################
-moy_prod=pd.DataFrame(np.array([[2000,200,'red',0],[180, 211*0.9, 'red',0],[350,120*0.9,'crimson',0],[0,190, 'yellow',4], [0,10,'green',6],[110,(211-ferm*55+supl)*0.9,'sienna',0],[0,1.5,'green',7]]),columns=["cout marginal","capa","couleur","2018"],index=["Defaillance","Diesel","TAC","PV","Eolien","Charbon","Biogaz"])   
-moy_prod["cout marginal"]=moy_prod["cout marginal"].astype(float)
-moy_prod["capa"]=moy_prod["capa"].astype(float)
-moy_prod["2018"]=moy_prod["2018"].astype(int)
-moy_prod=moy_prod.sort_values("cout marginal")
-for a,b in moy_prod.iterrows():
-    data[b.name]=0
-data["Conso"]=0 
-for i in range(len(data)):
-    heure=data.index[i].hour
-    day=data.index[i].date().weekday()
-    if day==5 or day==6 :
-        MM=VEwe[heure]+CES[heure]
-    elif day==0 or day==4:
-        MM=VElv[heure]+CES[heure]
-    else :
-        MM=VE[heure]+CES[heure]
-    update(data,"Conso",i,(1-tend)*MM+(1+(1-tend)*taxe[heure])*(1-(1-tend)*EE)*k*get(data,"Production totale (MW)",i))
+if not(load):
+    moy_prod=pd.DataFrame(np.array([[2000,200,'red',0],[180, 211*0.9, 'red',0],[350,120*0.9,'crimson',0],[0,190, 'yellow',4], [0,10,'green',6],[110,(211-ferm*55+supl)*0.9,'sienna',0],[0,1.5,'green',7]]),columns=["cout marginal","capa","couleur","2018"],index=["Defaillance","Diesel","TAC","PV","Eolien","Charbon","Biogaz"])   
+    moy_prod["cout marginal"]=moy_prod["cout marginal"].astype(float)
+    moy_prod["capa"]=moy_prod["capa"].astype(float)
+    moy_prod["2018"]=moy_prod["2018"].astype(int)
+    moy_prod=moy_prod.sort_values("cout marginal")
+    for a,b in moy_prod.iterrows():
+        data[b.name]=0
+    data["Conso"]=0 
+    for i in range(len(data)):
+        heure=data.index[i].hour
+        day=data.index[i].date().weekday()
+        if day==5 or day==6 :
+            MM=VEwe[heure]+CES[heure]
+        elif day==0 or day==4:
+            MM=VElv[heure]+CES[heure]
+        else :
+            MM=VE[heure]+CES[heure]
+        update(data,"Conso",i,(1-tend)*MM+(1+(1-tend)*taxe[heure])*(1-(1-tend)*EE)*k*get(data,"Production totale (MW)",i))
 ####################################################################################################
      
     
 #########################################EMPILEMENT CONSO###########################################
-for i in range(len(data)):
-    #On prend la conso (hors production fatale à la meme date de 2018)
-    fat=get(data,"fatal",i)
-    conso=get(data,"Conso",i)-fat
-    prod=0
-    for a,row in moy_prod.iterrows():
-        
-        ####ENR####
-        if row["cout marginal"]==0: #Si Prioritaire ( ie EnR)
-            prodenr=max(data.iloc[i,row["2018"]],0)
-            update(data,row.name,i,prodenr) # On met la prod EnR       
-        #####DISPATCHABLE   
-        elif prod<conso:
-            update(data,"cout marginal",i,row["cout marginal"]) #le prix marginal sera au moins au prix de cette ressource
+if not(load):
+    for i in range(len(data)):
+        #On prend la conso (hors production fatale à la meme date de 2018)
+        fat=get(data,"fatal",i)
+        conso=get(data,"Conso",i)-fat
+        prod=0
+        for a,row in moy_prod.iterrows():
             
-            if row["capa"]<conso-prod and row.name!="Diesel" : # on utilise cette centrale à fond si besoin
-                prod=prod+row["capa"]
-                update(data,row.name,i,row["capa"]) 
+            ####ENR####
+            if row["cout marginal"]==0: #Si Prioritaire ( ie EnR)
+                prodenr=max(data.iloc[i,row["2018"]],0)
+                update(data,row.name,i,prodenr) # On met la prod EnR       
+            #####DISPATCHABLE   
+            elif prod<conso:
+                update(data,"cout marginal",i,row["cout marginal"]) #le prix marginal sera au moins au prix de cette ressource
                 
-            else: # on n'utilise pas le moyen à fond donc on comble partiellement
-                if row.name=="Diesel": # Si Diesel on compte le nombre de groupe diesel allumés
-                    prodiesel=min(conso-prod,row["capa"])
-                    nbr=ceil(prodiesel/17)
-                    update(data,row.name,i,prodiesel) #on comble par tranche de centrale de 17
-                    update(data,"nbrcentralediesel",i,nbr)
-                    prod=prod+prodiesel
+                if row["capa"]<conso-prod and row.name!="Diesel" : # on utilise cette centrale à fond si besoin
+                    prod=prod+row["capa"]
+                    update(data,row.name,i,row["capa"]) 
                     
-                else :
-                    update(data,row.name,i,conso-prod)
-                    prod=conso
-#####################################################################################################
-                    
+                else: # on n'utilise pas le moyen à fond donc on comble partiellement
+                    if row.name=="Diesel": # Si Diesel on compte le nombre de groupe diesel allumés
+                        prodiesel=min(conso-prod,row["capa"])
+                        nbr=ceil(prodiesel/17)
+                        update(data,row.name,i,prodiesel) #on comble par tranche de centrale de 17
+                        update(data,"nbrcentralediesel",i,nbr)
+                        prod=prod+prodiesel
+                        
+                    else :
+                        update(data,row.name,i,conso-prod)
+                        prod=conso
+    #####################################################################################################
+                        
                     
 ###################################GESTION DES DIESELS ##############################################
-for i in range(len(data)):#On va regarder si on allume une centrale uniquement pour qqs heures
-   nbr= get(data,"nbrcentralediesel",i)
-   a=False
-   while nbr>get(data,"nbrcentralediesel",i-1) and not(a):#allumage de centrale
-        if (nbr>get(data,"nbrcentralediesel",i+1)) or (nbr>get(data,"nbrcentralediesel",i+2) or nbr>get(data,"nbrcentralediesel",i+3)): #centrale allumée moins de 3h
-            prod_diesel=get(data,"Diesel",i)-(nbr-1)*17  #prod diesel de la derniere centrale
-            if (moy_prod.loc["TAC","capa"]-get(data,"TAC",i))>prod_diesel: #si on peut remplacer ce groupe par du TAC
-                nbr=nbr-1
-                update(data,"nbrcentralediesel",i,nbr)
-                update(data,"Diesel",i,(nbr)*17)
-                update(data,"TAC",i,get(data,"TAC",i)+prod_diesel)
-                update(data,"cout marginal",i ,moy_prod.loc["TAC","cout marginal"])
+if not(load):
+    for i in range(len(data)):#On va regarder si on allume une centrale uniquement pour qqs heures
+       nbr= get(data,"nbrcentralediesel",i)
+       a=False
+       while nbr>get(data,"nbrcentralediesel",i-1) and not(a):#allumage de centrale
+            if (nbr>get(data,"nbrcentralediesel",i+1)) or (nbr>get(data,"nbrcentralediesel",i+2) or nbr>get(data,"nbrcentralediesel",i+3)): #centrale allumée moins de 3h
+                prod_diesel=get(data,"Diesel",i)-(nbr-1)*17  #prod diesel de la derniere centrale
+                if (moy_prod.loc["TAC","capa"]-get(data,"TAC",i))>prod_diesel: #si on peut remplacer ce groupe par du TAC
+                    nbr=nbr-1
+                    update(data,"nbrcentralediesel",i,nbr)
+                    update(data,"Diesel",i,(nbr)*17)
+                    update(data,"TAC",i,get(data,"TAC",i)+prod_diesel)
+                    update(data,"cout marginal",i ,moy_prod.loc["TAC","cout marginal"])
+                else:
+                    a=True   
             else:
-                a=True   
-        else:
-            a=True
+                a=True
 ######################################################################################################        
-print ("Diesel optimisé")  
+    print ("Diesel optimisé")  
 
 
      
-if True :        
+if not(load):        
     ######################################GESTION DE L HYDRO##############################################
     for i in range((date_fin-date_beg).days): # on va calculer la prod hydro de chaque journée et mieux la repartir
         if i%10==0 :
@@ -222,32 +239,33 @@ print ("Hydro optimisé")
 
 
 ###################################GESTION DES DIESELS #####- Seconde gestion des diesels possible, si l'hydro crée des situations où ils sont allumés peu de temps
-for i in range(len(data)):#On va regarder si on allume une centrale uniquement pour qqs heures
-   nbr= get(data,"nbrcentralediesel",i)
-   a=False
-   while nbr>get(data,"nbrcentralediesel",i-1) and not(a) and i<len(data)-3:#allumage de centrale
-        if (nbr>get(data,"nbrcentralediesel",i+1)) or (nbr>get(data,"nbrcentralediesel",i+2) or nbr>get(data,"nbrcentralediesel",i+3)): #centrale allumée moins de 3h
-            prod_diesel=get(data,"Diesel",i)-(nbr-1)*17  #prod diesel de la derniere centrale
-            if (moy_prod.loc["TAC","capa"]-get(data,"TAC",i))>prod_diesel: #si on peut remplacer ce groupe par du TAC
-                nbr=nbr-1
-                update(data,"nbrcentralediesel",i,nbr)
-                update(data,"Diesel",i,(nbr)*17)
-                update(data,"TAC",i,get(data,"TAC",i)+prod_diesel)  
-                update(data,"cout marginal" ,i,moy_prod.loc["TAC","cout marginal"])
-
+if not(load):
+    for i in range(len(data)):#On va regarder si on allume une centrale uniquement pour qqs heures
+       nbr= get(data,"nbrcentralediesel",i)
+       a=False
+       while nbr>get(data,"nbrcentralediesel",i-1) and not(a) and i<len(data)-3:#allumage de centrale
+            if (nbr>get(data,"nbrcentralediesel",i+1)) or (nbr>get(data,"nbrcentralediesel",i+2) or nbr>get(data,"nbrcentralediesel",i+3)): #centrale allumée moins de 3h
+                prod_diesel=get(data,"Diesel",i)-(nbr-1)*17  #prod diesel de la derniere centrale
+                if (moy_prod.loc["TAC","capa"]-get(data,"TAC",i))>prod_diesel: #si on peut remplacer ce groupe par du TAC
+                    nbr=nbr-1
+                    update(data,"nbrcentralediesel",i,nbr)
+                    update(data,"Diesel",i,(nbr)*17)
+                    update(data,"TAC",i,get(data,"TAC",i)+prod_diesel)  
+                    update(data,"cout marginal" ,i,moy_prod.loc["TAC","cout marginal"])
+    
+                else:
+                    a=True   
             else:
-                a=True   
-        else:
-            a=True
+                a=True
 #######################################################################################################        
 #print ("Diesel optimisé")  
-
-data["cout moyen de production"]=(227*data["Diesel"]+620*data["TAC"]+169*data["Charbon"]+189*data["Hydro"]+105*data["Biogaz"]+474*data["PV"]+250*data["Eolien"])/data["Conso"]  
-data["cout total achat"]=(data["cout marginal"]*(data["Diesel"]+data["TAC"]+data["Charbon"]+data["Hydro"]+data["Biogaz"])+464*data["PV"]+121*data["Eolien"])/data["Conso"]
-    
+if not(load):
+    data["cout moyen de production"]=(227*data["Diesel"]+620*data["TAC"]+169*data["Charbon"]+189*data["Hydro"]+105*data["Biogaz"]+474*data["PV"]+250*data["Eolien"])/data["Conso"]  
+    data["cout total achat"]=(data["cout marginal"]*(data["Diesel"]+data["TAC"]+data["Charbon"]+data["Hydro"]+data["Biogaz"])+464*data["PV"]+121*data["Eolien"])/data["Conso"]
+        
 
 ##########################################GRAPHS ############################          
-if not(annee):
+if not(annee) or not(load):
     
     #
     #
@@ -298,6 +316,8 @@ print( "Black Out",data["Defaillance"].sum())
 print("Cout total achat",(data["cout total achat"]*data["Conso"]).sum())
 print("Cout total prod",(data["cout moyen de production"]*data["Conso"]).sum())
 
+
+###########################COUTS MARGINAUX MOYEN########################################
 semaine=[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 weekend=[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 we=[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
@@ -314,40 +334,16 @@ for i in range(len(data)):
 for i in range(24):
     semaine[i]=semaine[i]/se[i]
     weekend[i]=weekend[i]/we[i]
-
-    
-
+#############################################################################################
 
 
+################################TRACER LE MONOTONE ET GERER LE LOAD DE FICHIER################### 
+if load :
+    data=pd.read_pickle(titre)
 
-
-
-#    
-#    
-#    
-#centrale=["Diesel","TAC","Bagasse/CharDefaillancen","Hydro Dispatch","Hydro Fatal","PV","PV avec stockage","Éolien","Bioénergies","Batteries"]
-#
-
-
-#
-#data["Photovoltaïque avec stockage (MW)"]=abs(data["Photovoltaïque avec stockage (MW)"])
-#data["Eolien (MW)"]=abs(data["Eolien (MW)"])
-#data["Photovoltaïque (MW)"]=abs(data["Photovoltaïque (MW)"])
-#data=data.sort_values("Date - Heure",ascending=True)
-#data=data.reset_index(drop=True)
-#bb=data.set_index("Date - Heure")
-#
-#bb.iloc[:, ::-1].drop("Production totale (MW)", axis=1).plot.area(color=['g','green','yellow','yellow','dodgerblue','sienna','red'])
-
-
-
-####TRACER LE MONOTONE 
-    
-if annee:    
-    #data=pd.read_csv('EDF_conso_2018.csv',';')
+if annee or load:    
     data=data.sort_values("Conso",ascending=False)
     data=data.reset_index(drop=True)
-    #data["Production totale 2028 tendanciel (MW)"]=data["Production totale (MW)"]*1.24
     plt.figure()
     ax=data["Conso"].plot(title="Monotone de la Consommation en 2028 Tendanciel",legend=True,ylim=[0,700],xlim=[0,9000])
     ax.set_xlabel("Heures")
@@ -359,16 +355,13 @@ if annee:
     data["Conso 2028 hors fatal et hydro"].plot(legend=True)
     plt.figure()
 
+if not(load) and annee:
+    if hyp=="":
+        data.to_pickle(titre)
+    else :
+        data.to_pickle(hyp)
 
-#data=data.sort_values("Production totale (MW)",ascending=False)
-#data=data.reset_index(drop=True)
-#bx=data["Production totale 2028 tendanciel (MW)"].plot(title="Monotone de la Consommation en 2028 tendanciel",legend=True,ylim=[0,700],xlim=[0,9000])
-#bx.set_xlabel("Heures")
-#bx.set_ylabel("Consommation (MW)")
-#data=data.sort_values("Prod_2028_hors_fatal",ascending=False)
-#data=data.reset_index(drop=True)
-#bx=data["Prod_2028_hors_fatal"].plot(legend=True)
-
+##################################################################################################
 
 
 
