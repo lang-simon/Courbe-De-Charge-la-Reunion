@@ -30,9 +30,9 @@ Scénario : diminution des investissements de l'État
 ###################################################
 
 ###################CHOIX DU SCENARIO################################
-tend=1# 1= Que impact du tendanciel 0= mesures du tendanciel       #
+tend=0# 1= Que impact du tendanciel 0= mesures du tendanciel       #
 hiver=1
-annee=1                                                           #
+annee=0                                                           #
 ####################################################################
 
 
@@ -242,46 +242,47 @@ for i in range(len(data)):#On va regarder si on allume une centrale uniquement p
 #######################################################################################################        
 #print ("Diesel optimisé")  
 
-
-
-##########################################GRAPHS ############################          
 data["cout moyen de production"]=(227*data["Diesel"]+620*data["TAC"]+169*data["Charbon"]+189*data["Hydro"]+105*data["Biogaz"]+474*data["PV"]+250*data["Eolien"])/data["Conso"]  
 data["cout total achat"]=(data["cout marginal"]*(data["Diesel"]+data["TAC"]+data["Charbon"]+data["Hydro"]+data["Biogaz"])+464*data["PV"]+121*data["Eolien"])/data["Conso"]
+    
 
-#
-#
-data.iloc[:,[2,3,4,5,6,7]]=abs((data.iloc[:,[2,3,4,5,6,7]]))
-fig, axs = plt.subplots(2,gridspec_kw={'height_ratios': [3, 1]})
-ax,ax3=axs[0],axs[1]
-gs1 = gridspec.GridSpec(1, 2)
-gs1.update(hspace=0)
-
-ax.set_ylabel("Consommation (MW)") 
-#rspine = ax3.spines['right']
-#ax3.set_frame_on(True)
-#ax3.patch.set_visible(False)
-ax3.set_ylabel("Prix euro/MWh")
-fig.subplots_adjust(right=0.7)
-data.iloc[:,[13,12,14,15,16,10,17,18]].plot.area(figsize=(16, 10),ax=ax,linewidth=0,color=["darkgreen","yellow","green","saddlebrown","darkorange","royalblue","magenta","black"])  
-#data["prix"].plot(ax=ax3,color='r', ylim=[0,450])
-ax.set_xticklabels([])
-ax.xaxis.set_visible(False)
-
-data["Co2"]=(227*data["Diesel"]+620*data["TAC"]+169*data["Charbon"]+189*data["Hydro"]+105*data["Biogaz"]+474*data["PV"]+250*data["Eolien"])
-data["Conso"].plot(ax=ax,color="r")
-data["Conso 2018"]=data["Production totale (MW)"]
-data["Conso 2018"].plot(ax=ax,color="B")
-data["Tendanciel"]=k*data["Production totale (MW)"]
-#data["Tendanciel"].plot(ax=ax,color="black")
-
-data["cout moyen de production"].plot(ax=ax3,color='b',legend=True, ylim=[150,400])
-data["cout marginal"].plot(ax=ax3,color='black',legend=True, ylim=[150,400])
-data["cout total achat"].plot(ax=ax3,color='red',legend=True, ylim=[150,400])
-ax3.legend(loc=1)
-ax.legend(loc="lower left")
-ax.set_title(titre)
-
-plt.subplots_adjust(wspace=0, hspace=0)
+##########################################GRAPHS ############################          
+if not(annee):
+    
+    #
+    #
+    data.iloc[:,[2,3,4,5,6,7]]=abs((data.iloc[:,[2,3,4,5,6,7]]))
+    fig, axs = plt.subplots(2,gridspec_kw={'height_ratios': [3, 1]})
+    ax,ax3=axs[0],axs[1]
+    gs1 = gridspec.GridSpec(1, 2)
+    gs1.update(hspace=0)
+    
+    ax.set_ylabel("Consommation (MW)") 
+    #rspine = ax3.spines['right']
+    #ax3.set_frame_on(True)
+    #ax3.patch.set_visible(False)
+    ax3.set_ylabel("Prix euro/MWh")
+    fig.subplots_adjust(right=0.7)
+    data.iloc[:,[13,12,14,15,16,10,17,18]].plot.area(figsize=(16, 10),ax=ax,linewidth=0,color=["darkgreen","yellow","green","saddlebrown","darkorange","royalblue","magenta","black"])  
+    #data["prix"].plot(ax=ax3,color='r', ylim=[0,450])
+    ax.set_xticklabels([])
+    ax.xaxis.set_visible(False)
+    
+    data["Co2"]=(227*data["Diesel"]+620*data["TAC"]+169*data["Charbon"]+189*data["Hydro"]+105*data["Biogaz"]+474*data["PV"]+250*data["Eolien"])
+    data["Conso"].plot(ax=ax,color="r")
+    data["Conso 2018"]=data["Production totale (MW)"]
+    data["Conso 2018"].plot(ax=ax,color="B")
+    data["Tendanciel"]=k*data["Production totale (MW)"]
+    #data["Tendanciel"].plot(ax=ax,color="black")
+    
+    data["cout moyen de production"].plot(ax=ax3,color='b',legend=True, ylim=[150,400])
+    data["cout marginal"].plot(ax=ax3,color='black',legend=True, ylim=[150,400])
+    data["cout total achat"].plot(ax=ax3,color='red',legend=True, ylim=[150,400])
+    ax3.legend(loc=1)
+    ax.legend(loc="lower left")
+    ax.set_title(titre)
+    
+    plt.subplots_adjust(wspace=0, hspace=0)
 
 plt.show()
 print( "Les TAC ont fonctionné",data[data["TAC"]>0].count().mean(), "pour ",data["TAC"].sum(),"MWh")
@@ -341,22 +342,22 @@ for i in range(24):
 
 
 ####TRACER LE MONOTONE 
-#data=pd.read_csv('EDF_conso_2018.csv',';')
-data=data.iloc[:,[3,6,7,8,9,10]]
-data=data.sort_values("Conso",ascending=False)
-data=data.reset_index(drop=True)
-#data["Production totale 2028 tendanciel (MW)"]=data["Production totale (MW)"]*1.24
-plt.figure()
-ax=data["Conso"].plot(title="Monotone de la Consommation en 2028 Tendanciel",legend=True,ylim=[0,700],xlim=[0,9000])
-ax.set_xlabel("Heures")
-ax.set_ylabel("Consommation (MW)")
-data["fatal"]=data["PV"]+data["Biogaz"]+data["Eolien"]+data["Hydro"]
-data["Conso optimisée 2028 hors fatal et hydro"]=data["Conso"]-data["fatal"]
-data["Prod_2028_hors_fatal"]=data["Production totale 2028 tendanciel (MW)"]-data["fatal"]#si pas investissement dans FATAL
-data=data.sort_values("Conso optimisée 2028 hors fatal et hydro",ascending=False)
-data=data.reset_index(drop=True)
-ax=data["Conso optimisée 2028 hors fatal et hydro"].plot(legend=True)
-plt.figure()
+    
+if annee:    
+    #data=pd.read_csv('EDF_conso_2018.csv',';')
+    data=data.sort_values("Conso",ascending=False)
+    data=data.reset_index(drop=True)
+    #data["Production totale 2028 tendanciel (MW)"]=data["Production totale (MW)"]*1.24
+    plt.figure()
+    ax=data["Conso"].plot(title="Monotone de la Consommation en 2028 Tendanciel",legend=True,ylim=[0,700],xlim=[0,9000])
+    ax.set_xlabel("Heures")
+    ax.set_ylabel("Consommation (MW)")
+    data["fatal"]=data["PV"]+data["Biogaz"]+data["Eolien"]+data["Hydro"]
+    data["Conso 2028 hors fatal et hydro"]=data["Conso"]-data["fatal"]
+    data=data.sort_values("Conso 2028 hors fatal et hydro",ascending=False)
+    data=data.reset_index(drop=True)
+    data["Conso 2028 hors fatal et hydro"].plot(legend=True)
+    plt.figure()
 
 
 #data=data.sort_values("Production totale (MW)",ascending=False)
