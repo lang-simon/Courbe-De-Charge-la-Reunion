@@ -342,21 +342,23 @@ for i in range(24):
 
 ####TRACER LE MONOTONE 
 #data=pd.read_csv('EDF_conso_2018.csv',';')
-#data=data.iloc[:,[3,6,7,8,9,10]]
-#data=data.sort_values("Conso",ascending=False)
-#data=data.reset_index(drop=True)
-##data["Production totale 2028 tendanciel (MW)"]=data["Production totale (MW)"]*1.24
-#plt.figure()
-#ax=data["Conso"].plot(title="Monotone de la Consommation en 2028 Optimisé",legend=True,ylim=[0,700],xlim=[0,9000])
-#ax.set_xlabel("Heures")
-#ax.set_ylabel("Consommation (MW)")
-#data["fatal"]=data["PV"]+data["Biogaz"]+data["Eolien"]+data["Hydro"]
-#data["Conso optimisée 2028 hors fatal et hydro"]=data["Conso"]-data["fatal"]
-##data["Prod_2028_hors_fatal"]=data["Production totale 2028 tendanciel (MW)"]-data["fatal"]#si pas investissement dans FATAL
-#data=data.sort_values("Conso optimisée 2028 hors fatal et hydro",ascending=False)
-#data=data.reset_index(drop=True)
-#ax=data["Conso optimisée 2028 hors fatal et hydro"].plot(legend=True)
-#plt.figure()
+data=data.iloc[:,[3,6,7,8,9,10]]
+data=data.sort_values("Conso",ascending=False)
+data=data.reset_index(drop=True)
+#data["Production totale 2028 tendanciel (MW)"]=data["Production totale (MW)"]*1.24
+plt.figure()
+ax=data["Conso"].plot(title="Monotone de la Consommation en 2028 Tendanciel",legend=True,ylim=[0,700],xlim=[0,9000])
+ax.set_xlabel("Heures")
+ax.set_ylabel("Consommation (MW)")
+data["fatal"]=data["PV"]+data["Biogaz"]+data["Eolien"]+data["Hydro"]
+data["Conso optimisée 2028 hors fatal et hydro"]=data["Conso"]-data["fatal"]
+data["Prod_2028_hors_fatal"]=data["Production totale 2028 tendanciel (MW)"]-data["fatal"]#si pas investissement dans FATAL
+data=data.sort_values("Conso optimisée 2028 hors fatal et hydro",ascending=False)
+data=data.reset_index(drop=True)
+ax=data["Conso optimisée 2028 hors fatal et hydro"].plot(legend=True)
+plt.figure()
+
+
 #data=data.sort_values("Production totale (MW)",ascending=False)
 #data=data.reset_index(drop=True)
 #bx=data["Production totale 2028 tendanciel (MW)"].plot(title="Monotone de la Consommation en 2028 tendanciel",legend=True,ylim=[0,700],xlim=[0,9000])
